@@ -1,0 +1,16 @@
+# Python artifacts
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+
+# Notebook cruft
+.ipynb_checkpoints/
+
+# Generated data & alerts
+data/
+*.sqlite
+
+# OS files
+.DS_Store

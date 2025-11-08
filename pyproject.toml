@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "market-surveillance"
+version = "0.1.0"
+description = "Synthetic crypto exchange market surveillance demo"
+authors = [{ name = "Codex" }]
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pandas>=2.1",
+    "numpy>=1.26",
+    "plotly>=5.18",
+    "ipywidgets>=8.1",
+    "jupyter>=1.0",
+    "scikit-learn>=1.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
