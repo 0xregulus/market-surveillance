@@ -12,7 +12,7 @@ Synthetic end-to-end workflow that simulates a cryptocurrency exchange, injects 
 - Adds bespoke account-deviation bursts so profiles can drift sharply from historical norms.
 - Trades and orders are tagged with venues while a position snapshot quantifies float share per account, enabling venue-aware and concentration rules.
 - Embedded network metadata (device fingerprints + IP subnets) power behavioral clustering scenarios to mimic insider collaboration.
-- Unsupervised ML (IsolationForest + feature engineering) ranks anomalous accounts and feeds those scores into the alert stream plus the monitoring notebook.
+- Unsupervised ML (IsolationForest + KMeans distance on engineered behavioral vectors) ranks anomalous accounts and feeds those scores into the alert stream plus the monitoring notebook.
 - Surveillance engine runs multiple rules: self-trades, bilateral ping-pong loops, extreme price moves vs rolling baseline, abnormal volume spikes, spoofing via order cancellations, account profile deviations, position concentration, message-rate spikes, cancel-to-fill surges, layering sequences, cross-market divergence, network collusion, ML behavioral anomalies, and front-running around large prints.
 - Alerts persisted to `data/alerts.sqlite` plus CSV snapshot for offline review.
 - Notebook (`notebooks/surveillance_dashboard.ipynb`) now plots price, aggressor volume, order-book imbalance, and includes an interactive case-management widget for alert triage.
@@ -86,5 +86,4 @@ Synthetic end-to-end workflow that simulates a cryptocurrency exchange, injects 
 ## Extending
 - Add new rule functions under `surveillance_rules.py` and include them in `run_all_rules`.
 - Expand generators with additional behaviors to test coverage.
-- Extend the notebook with richer plots (e.g., order book imbalance) or workflow widgets for case tracking.
 - Wire additional ML detectors by adding feature engineering helpers in `ml_utils.py`, calling them from the engine, and exposing scores in the notebook.

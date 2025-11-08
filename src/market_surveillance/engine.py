@@ -7,7 +7,7 @@ from typing import Dict, List
 import pandas as pd
 
 from .data_generator import GeneratedData, generate_dataset
-from .ml_utils import compute_behavioral_anomalies
+from .ml_utils import compute_ml_scores
 from .persistence import AlertStore
 from .surveillance_rules import Alert, run_all_rules
 
@@ -28,7 +28,7 @@ class SurveillanceEngine:
 
     def run(self, persist_artifacts: bool = True) -> EngineResult:
         dataset = generate_dataset()
-        ml_scores = compute_behavioral_anomalies(dataset.accounts, dataset.trades, dataset.orders, dataset.positions)
+        ml_scores = compute_ml_scores(dataset.accounts, dataset.trades, dataset.orders, dataset.positions)
         alerts = run_all_rules(
             dataset.trades,
             dataset.orders,

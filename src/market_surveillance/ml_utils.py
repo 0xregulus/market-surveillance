@@ -5,6 +5,7 @@ from typing import Dict, Optional
 
 import numpy as np
 import pandas as pd
+from sklearn.cluster import KMeans
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
 
@@ -70,7 +71,7 @@ def build_account_feature_matrix(
     return feats
 
 
-def compute_behavioral_anomalies(
+def compute_ml_scores(
     accounts: pd.DataFrame,
     trades: pd.DataFrame,
     orders: pd.DataFrame,
@@ -80,8 +81,15 @@ def compute_behavioral_anomalies(
 ) -> pd.DataFrame:
     features = build_account_feature_matrix(accounts, trades, orders, positions)
     if features.empty:
-        return pd.DataFrame(columns=["account_id", "anomaly_score", "ml_flag"])
+        return pd.DataFrame(columns=["account_id", "detector", "anomaly_score", "ml_flag"])
 
+    iso = _isolation_forest_scores(features, contamination, random_state)
+    kmeans = _kmeans_distance_scores(features, contamination, random_state)
+    combined = pd.concat([iso, kmeans], ignore_index=True, sort=False)
+    return combined.sort_values(["detector", "anomaly_score"], ascending=[True, False]).reset_index(drop=True)
+
+
+def _isolation_forest_scores(features: pd.DataFrame, contamination: float, random_state: int) -> pd.DataFrame:
     scaler = StandardScaler()
     X = scaler.fit_transform(features)
     model = IsolationForest(
@@ -99,5 +107,29 @@ def compute_behavioral_anomalies(
     result["anomaly_score"] = anomaly_score
     result["ml_flag"] = flagged
     result["rank"] = result["anomaly_score"].rank(method="dense", ascending=False)
-    result = result.sort_values("anomaly_score", ascending=False).reset_index(drop=True)
+    result["detector"] = "isolation_forest"
+    return result
+
+
+def _kmeans_distance_scores(features: pd.DataFrame, contamination: float, random_state: int) -> pd.DataFrame:
+    scaler = StandardScaler()
+    X = scaler.fit_transform(features)
+    n_clusters = int(np.clip(len(features) // 6, 2, 12))
+    model = KMeans(n_clusters=n_clusters, n_init="auto", random_state=random_state)
+    labels = model.fit_predict(X)
+    centers = model.cluster_centers_
+    distances = np.linalg.norm(X - centers[labels], axis=1)
+    distance_z = (distances - distances.mean()) / (distances.std(ddof=0) + 1e-9)
+    threshold = np.quantile(distance_z, 1 - contamination / 2)
+    flagged = distance_z >= threshold
+    cluster_sizes = pd.Series(labels).value_counts()
+
+    result = features.reset_index().rename(columns={"index": "account_id"})
+    result["cluster"] = labels
+    result["cluster_size"] = result["cluster"].map(cluster_sizes)
+    result["distance"] = distances
+    result["anomaly_score"] = distance_z
+    result["ml_flag"] = flagged
+    result["rank"] = result["anomaly_score"].rank(method="dense", ascending=False)
+    result["detector"] = "kmeans_distance"
     return result

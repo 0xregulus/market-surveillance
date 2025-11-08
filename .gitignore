@@ -4,6 +4,7 @@ __pycache__/
 
 # Virtual environments
 .venv/
+*.egg-info/
 
 # Notebook cruft
 .ipynb_checkpoints/

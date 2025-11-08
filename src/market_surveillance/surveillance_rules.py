@@ -6,7 +6,7 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 import numpy as np
 import pandas as pd
 
-from .ml_utils import compute_behavioral_anomalies
+from .ml_utils import compute_ml_scores
 
 
 @dataclass
@@ -437,37 +437,44 @@ def detect_ml_behavioral_anomalies(
     accounts: pd.DataFrame,
     positions: pd.DataFrame,
     precomputed: Optional[pd.DataFrame] = None,
-    top_k: int = 8,
+    top_k: int = 5,
 ) -> List[Alert]:
     alerts: List[Alert] = []
     if precomputed is None:
-        ml_scores = compute_behavioral_anomalies(accounts, trades, orders, positions)
+        ml_scores = compute_ml_scores(accounts, trades, orders, positions)
     else:
         ml_scores = precomputed
     if ml_scores is None or ml_scores.empty:
         return alerts
-    flagged = ml_scores.loc[ml_scores["ml_flag"]].head(top_k)
-    for _, row in flagged.iterrows():
-        severity = "high" if row["anomaly_score"] >= ml_scores["anomaly_score"].quantile(0.95) else "medium"
-        metadata_raw = row.drop(labels=["account_id", "ml_flag", "anomaly_score", "rank"]).to_dict()
-        metadata = {}
-        for key, value in metadata_raw.items():
-            if isinstance(value, (np.floating, np.integer)):
-                metadata[key] = float(value)
-            else:
-                metadata[key] = value
-        metadata["anomaly_score"] = float(row["anomaly_score"])
-        alerts.append(
-            Alert(
-                rule_name="ml_behavioral_anomaly",
-                severity=severity,
-                account_id=row["account_id"],
-                related_accounts=[],
-                description=f"IsolationForest flagged account with score {row['anomaly_score']:.2f}",
-                metadata=metadata,
-                event_time=pd.Timestamp.now(tz="UTC"),
+
+    for detector, detector_scores in ml_scores.groupby("detector"):
+        detector_scores = detector_scores.sort_values("anomaly_score", ascending=False)
+        flagged = detector_scores.loc[detector_scores["ml_flag"]].head(top_k)
+        if flagged.empty:
+            continue
+        high_threshold = detector_scores["anomaly_score"].quantile(0.9)
+        for _, row in flagged.iterrows():
+            severity = "high" if row["anomaly_score"] >= high_threshold else "medium"
+            metadata_raw = row.drop(labels=["account_id", "ml_flag", "anomaly_score", "rank"]).to_dict()
+            metadata = {}
+            for key, value in metadata_raw.items():
+                if isinstance(value, (np.floating, np.integer)):
+                    metadata[key] = float(value)
+                else:
+                    metadata[key] = value
+            metadata["anomaly_score"] = float(row["anomaly_score"])
+            metadata["detector"] = detector
+            alerts.append(
+                Alert(
+                    rule_name="ml_behavioral_anomaly",
+                    severity=severity,
+                    account_id=row["account_id"],
+                    related_accounts=[],
+                    description=f"{detector} flagged account with score {row['anomaly_score']:.2f}",
+                    metadata=metadata,
+                    event_time=pd.Timestamp.now(tz="UTC"),
+                )
             )
-        )
     return alerts
 
 
