@@ -1,6 +1,11 @@
 # Crypto Market Surveillance Demo
 
-Synthetic end-to-end workflow that simulates a cryptocurrency exchange, injects manipulation patterns, and runs baseline surveillance rules. Alerts are persisted to SQLite and summarized in a Jupyter notebook for monitoring/case management.
+Synthetic end-to-end workflow that simulates a cryptocurrency exchange, injects manipulation patterns, and runs baseline surveillance + ML scoring. Alerts land in SQLite, CSV snapshots, and an interactive notebook for monitoring/case management.
+
+## Why this project?
+- **Rapid prototyping:** Spin up a fully synthetic venue with realistic noise plus deterministic abusive behaviors to validate detection logic without live data.
+- **Rule + ML contrast:** See how classic surveillance heuristics complement unsupervised learning for outlier discovery.
+- **Investigative UX:** Notebook doubles as a lightweight case hub with contextual plots, float-share tables, shared-IP clusters, and ML leaderboards.
 
 ## Features
 - Generates synthetic accounts, trades, and order book events with embedded scenarios: wash trading, ping-pong bursts, pump & dump, spoofing, front-running, account-message bursts, layering ladders, and cross-venue price shocks.
@@ -27,6 +32,18 @@ Synthetic end-to-end workflow that simulates a cryptocurrency exchange, injects 
 - **Cross-market divergence** – resamples prices by venue and highlights windows where venue spreads exceed 2%, suggesting dislocations or manipulative prints.
 - **Network collusion** – clusters accounts by IP/device fingerprints and flags windows where ≥3 accounts push the same asset/direction within 60s, hinting at coordinated manipulation.
 - **ML behavioral anomalies** – IsolationForest ingests aggregated trade/order/position features to spot outlier accounts that deviate from learned norms even when they avoid individual rule triggers.
+
+## Architecture at a glance
+1. **Data generation (`market_surveillance.data_generator`)**  
+   - Builds accounts enriched with region, risk tier, device fingerprint, IP subnet, and behavioral clusters.  
+   - Synthesizes trades/orders/orders per venue while injecting scripted manipulations (pump & dump, spoofing, front-running, cross-market divergence, collusion loops).  
+   - Aggregates latest positions (net/gross exposure, float share, dominant venue).
+2. **Surveillance engine (`market_surveillance.engine`)**  
+   - Runs rule deck (`surveillance_rules.py`) + ML anomaly scoring (`ml_utils.py`).  
+   - Persists accounts/trades/orders/positions/alerts/ml_scores to `data/` and SQLite via `persistence.py`.  
+   - CLI entrypoint (`python -m market_surveillance.main`) orchestrates the run and prints JSON summary.
+3. **Analyst notebook (`notebooks/surveillance_dashboard.ipynb`)**  
+   - Auto-loads or regenerates data, draws price/volume/venue spreads, surfaces float-share & shared-IP tables, visualizes ML anomalies, and provides a filterable alert table with status + note capture.
 
 ## Getting Started
 1. Create a UV-managed virtual environment and install dependencies (Python 3.10+).
@@ -70,3 +87,4 @@ Synthetic end-to-end workflow that simulates a cryptocurrency exchange, injects 
 - Add new rule functions under `surveillance_rules.py` and include them in `run_all_rules`.
 - Expand generators with additional behaviors to test coverage.
 - Extend the notebook with richer plots (e.g., order book imbalance) or workflow widgets for case tracking.
+- Wire additional ML detectors by adding feature engineering helpers in `ml_utils.py`, calling them from the engine, and exposing scores in the notebook.
